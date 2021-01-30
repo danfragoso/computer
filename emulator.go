@@ -19,9 +19,15 @@ type CPU struct {
 
 type Memory struct {
 	Size uint32
-	Data []byte
-
 	Emulator *Emulator
+}
+
+func (mem *Memory) Load(address uint32) uint32 {
+	return binary.LittleEndian.Uint32(readBytes([]byte{
+        byte(0xff & (address >> 16)),
+		byte(0xff & (address >> 8)),
+		byte(0xff & address),
+	}, 4))
 }
 
 func CreateEmulator(initData []byte) *Emulator {
@@ -34,9 +40,10 @@ func CreateEmulator(initData []byte) *Emulator {
 }
 
 func (emulator *Emulator) CreateMemory(initData []byte) {
+	writeBytes([]byte{0x0, 0x0, 0x0}, initData)
+
 	emulator.Memory = &Memory{
 		Size:     uint32(len(initData)),
-		Data:     initData,
 		Emulator: emulator,
 	}
 }
@@ -83,12 +90,7 @@ func (emulator *Emulator) DumpRegisters() {
 }
 
 func (cpu *CPU) Fetch() uint32 {
-	return binary.LittleEndian.Uint32([]uint8{
-		cpu.Emulator.Memory.Data[cpu.ProgramCounter],
-		cpu.Emulator.Memory.Data[cpu.ProgramCounter+1],
-		cpu.Emulator.Memory.Data[cpu.ProgramCounter+2],
-		cpu.Emulator.Memory.Data[cpu.ProgramCounter+3],
-	})
+	return cpu.Emulator.Memory.Load(cpu.ProgramCounter)
 }
 
 func (cpu *CPU) Execute(inst uint32) {
@@ -107,8 +109,7 @@ func (cpu *CPU) Execute(inst uint32) {
 		cpu.Registers[RD] = cpu.Registers[RS1] + cpu.Registers[RS2]
 
 	default:
-		errStr := "Opcode '0x" + strconv.FormatUint(uint64(OPCODE), 16) + "' not implemented!"
-		println(errStr)
+		println("Opcode '0x" + strconv.FormatUint(uint64(OPCODE), 16) + "' not implemented!")
 	}
 
 }
