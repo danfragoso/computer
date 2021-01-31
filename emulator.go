@@ -30,20 +30,23 @@ func (mem *Memory) Load(address uint32) uint32 {
 	}, 4))
 }
 
-func CreateEmulator(initData []byte) *Emulator {
+func CreateEmulator(payloadSize uint32) *Emulator {
 	emulator := &Emulator{}
 
-	emulator.CreateMemory(initData)
+	emulator.CreateMemory(payloadSize)
 	emulator.CreateCPU()
 
 	return emulator
 }
 
-func (emulator *Emulator) CreateMemory(initData []byte) {
-	writeBytes([]byte{0x0, 0x0, 0x0}, initData)
-
+func (emulator *Emulator) CreateMemory(memorySize uint32) {
+	if memorySize == 0 {
+		memorySize = bootROM_Size()
+		writeBytes([]byte{0x0, 0x0, 0x0}, bootROM())
+	}
+	
 	emulator.Memory = &Memory{
-		Size:     uint32(len(initData)),
+		Size:     memorySize,
 		Emulator: emulator,
 	}
 }

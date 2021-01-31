@@ -17,6 +17,8 @@ func println(str string) {
 }
 
 func printInit() {
+	machine.UART0.SetBaudRate(115200)
+	
 	print("\n\n")
 	println("RV-STM32 Computer Project")
 	println("2021 - Danilo Fragoso <danilo.fragoso@gmail.com>")
