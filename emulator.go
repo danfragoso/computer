@@ -97,24 +97,39 @@ func (cpu *CPU) Fetch() uint32 {
 }
 
 func (cpu *CPU) Execute(inst uint32) {
-	OPCODE := inst & 0x0000007f
+	OPCODE := (inst & 0b00000000000000000000000001111111)
+	RD     := (inst & 0b00000000000000000000111110000000) >> 7
+	
+	RS1    := (inst & 0b00000000000011111000000000000000) >> 15
+	RS2    := (inst & 0b00000001111100000000000000000000) >> 20
 
-	RD := (inst & 0x00000f80) >> 7
-	RS1 := (inst & 0x000f8000) >> 15
-	RS2 := (inst & 0x01f00000) >> 20
+	FUNCT3 := (inst & 0b00000000000000000111000000000000) >> 12
 
 	switch OPCODE {
-	case 0x13: // ADDI
-		IMM := uint32((inst & 0xfff00000) >> 20)
-		cpu.Registers[RD] = cpu.Registers[RS1] + IMM
+	case 0b0010011: // ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
+		switch FUNCT3 {
+		case 0b000: // ADDI
+			cpu.Registers[RD] = cpu.Registers[RS1] + I_Type_IMM(inst)
 
-	case 0x33: // ADD
+		case 0b010: // SLTI 
+			if cpu.Registers[RS1] < I_Type_IMM(inst) {
+				cpu.Registers[RD] = 1
+			} else {
+				cpu.Registers[RD] = 0
+			}
+		}
+
+	case 0b00110011: // ADD
 		cpu.Registers[RD] = cpu.Registers[RS1] + cpu.Registers[RS2]
 
 	default:
-		println("Opcode '0x" + strconv.FormatUint(uint64(OPCODE), 16) + "' not implemented!")
+		println("Opcode '0b" + strconv.FormatUint(uint64(OPCODE), 2) + "' not implemented!")
 	}
 
+}
+
+func I_Type_IMM(inst uint32) uint32 {
+	return (inst & 0b11111111111100000000000000000000) >> 20
 }
 
 func padInt(n int) string {

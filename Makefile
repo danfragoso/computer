@@ -15,3 +15,6 @@ asm:
 
 	cd code && riscv32-unknown-elf-as -o li-add.o li-add.s
 	cd code && riscv32-unknown-elf-objcopy -O binary li-add.o li-add.bin
+
+	cd code && riscv32-unknown-elf-as -o li-slti.o li-slti.s
+	cd code && riscv32-unknown-elf-objcopy -O binary li-slti.o li-slti.bin
