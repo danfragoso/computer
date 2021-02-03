@@ -12,7 +12,7 @@ type Emulator struct {
 
 type CPU struct {
 	Registers      [32]uint32
-	ProgramCounter uint32
+	PC uint32
 
 	Emulator *Emulator
 }
@@ -64,10 +64,10 @@ func (emulator *Emulator) Run() {
 	println("Starting execution")
 	println("----------------------")
 
-	for emulator.CPU.ProgramCounter < emulator.Memory.Size {
-		print("PC: " + strconv.FormatUint(uint64(emulator.CPU.ProgramCounter/4), 10))
+	for emulator.CPU.PC < emulator.Memory.Size {
+		print("PC: " + strconv.FormatUint(uint64(emulator.CPU.PC/4), 10))
 		instruction := emulator.CPU.Fetch()
-		emulator.CPU.ProgramCounter += 4
+		emulator.CPU.PC += 4
 		emulator.CPU.Execute(instruction)
 	}
 
@@ -93,7 +93,7 @@ func (emulator *Emulator) DumpRegisters() {
 }
 
 func (cpu *CPU) Fetch() uint32 {
-	return cpu.Emulator.Memory.Load(cpu.ProgramCounter)
+	return cpu.Emulator.Memory.Load(cpu.PC)
 }
 
 func (cpu *CPU) Execute(inst uint32) {
@@ -106,6 +106,19 @@ func (cpu *CPU) Execute(inst uint32) {
 	FUNCT3 := (inst & 0b00000000000000000111000000000000) >> 12
 
 	switch OPCODE {
+	case 0b0110111: // LUI
+		cpu.Registers[RD] = inst & 0b11111111111111111111000000000000
+	
+	case 0b0010111: // AUIPC
+		cpu.Registers[RD] = cpu.PC + (inst & 0b11111111111111111111000000000000)
+
+	case 0b1101111: // JAL
+		cpu.Registers[RD] = cpu.PC + 4
+		cpu.PC += (inst >> 11) & 0b10000000000000000000000000000000 | // imm[20]
+				  (inst)       & 0b00000000000011111111000000000000 | // imm[19:12]
+				  (inst >> 9)  & 0b00000000000000000000100000000000 | // imm[11]
+				  (inst >> 20) & 0b00000000000000000000011111111110   // imm[10:1]
+	
 	case 0b0010011: // ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
 		switch FUNCT3 {
 		case 0b000: // ADDI
