@@ -67,7 +67,6 @@ func (emulator *Emulator) Run() {
 	for emulator.CPU.PC < emulator.Memory.Size {
 		print("PC: " + strconv.FormatUint(uint64(emulator.CPU.PC/4), 10))
 		instruction := emulator.CPU.Fetch()
-		emulator.CPU.PC += 4
 		emulator.CPU.Execute(instruction)
 	}
 
@@ -96,6 +95,10 @@ func (cpu *CPU) Fetch() uint32 {
 	return cpu.Emulator.Memory.Load(cpu.PC)
 }
 
+func (cpu *CPU) PC_Inc() {
+	cpu.PC += 4
+}
+
 func (cpu *CPU) Execute(inst uint32) {
 	OPCODE := (inst & 0b00000000000000000000000001111111)
 	RD     := (inst & 0b00000000000000000000111110000000) >> 7
@@ -114,11 +117,8 @@ func (cpu *CPU) Execute(inst uint32) {
 
 	case 0b1101111: // JAL
 		cpu.Registers[RD] = cpu.PC + 4
-		cpu.PC += (inst >> 11) & 0b10000000000000000000000000000000 | // imm[20]
-				  (inst)       & 0b00000000000011111111000000000000 | // imm[19:12]
-				  (inst >> 9)  & 0b00000000000000000000100000000000 | // imm[11]
-				  (inst >> 20) & 0b00000000000000000000011111111110   // imm[10:1]
-	
+		cpu.PC += J_Type_IMM(inst)
+
 	case 0b0010011: // ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
 		switch FUNCT3 {
 		case 0b000: // ADDI
@@ -139,6 +139,14 @@ func (cpu *CPU) Execute(inst uint32) {
 		println("Opcode '0b" + strconv.FormatUint(uint64(OPCODE), 2) + "' not implemented!")
 	}
 
+	cpu.PC_Inc()
+}
+
+func J_Type_IMM(inst uint32) uint32 {
+	return uint32((int32(inst & 0b10000000000000000000000000000000) >> 11)) |
+						(inst & 0b00000000000011111111000000000000) |
+						(inst >> 9) & 0b00000000000000100000000000  |
+						(inst >> 20) & 0b0000000000000011111111110
 }
 
 func I_Type_IMM(inst uint32) uint32 {
