@@ -66,8 +66,7 @@ func (emulator *Emulator) Run() {
 
 	for emulator.CPU.PC < emulator.Memory.Size {
 		print("PC: " + strconv.FormatUint(uint64(emulator.CPU.PC/4), 10))
-		instruction := emulator.CPU.Fetch()
-		emulator.CPU.Execute(instruction)
+		emulator.CPU.Execute(emulator.CPU.Fetch())
 	}
 
 	print("\n")
@@ -110,14 +109,33 @@ func (cpu *CPU) Execute(inst uint32) {
 
 	switch OPCODE {
 	case 0b0110111: // LUI
-		cpu.Registers[RD] = inst & 0b11111111111111111111000000000000
+		cpu.Registers[RD] = inst & U_Type_IMM(inst)
+		cpu.PC_Inc()
 	
 	case 0b0010111: // AUIPC
-		cpu.Registers[RD] = cpu.PC + (inst & 0b11111111111111111111000000000000)
+		cpu.Registers[RD] = cpu.PC + U_Type_IMM(inst)
+		cpu.PC_Inc()
 
 	case 0b1101111: // JAL
 		cpu.Registers[RD] = cpu.PC + 4
 		cpu.PC += J_Type_IMM(inst)
+
+	case 0b1100011: // BEQ, BNE, BLT, BGE, BLTU, BGEU
+		switch FUNCT3 {
+		case 0b100: // BLT
+			if int32(cpu.Registers[RS1]) < int32(cpu.Registers[RS2]) {
+				cpu.PC += B_Type_IMM(inst)
+			} else {
+				cpu.PC_Inc()
+			}
+	
+		case 0b101: //BGE
+			if int32(cpu.Registers[RS1]) >= int32(cpu.Registers[RS2]) {
+				cpu.PC += B_Type_IMM(inst)
+			} else {
+				cpu.PC_Inc()
+			}
+		}
 
 	case 0b0010011: // ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
 		switch FUNCT3 {
@@ -125,28 +143,40 @@ func (cpu *CPU) Execute(inst uint32) {
 			cpu.Registers[RD] = cpu.Registers[RS1] + I_Type_IMM(inst)
 
 		case 0b010: // SLTI 
-			if cpu.Registers[RS1] < I_Type_IMM(inst) {
+			if int32(cpu.Registers[RS1]) < int32(I_Type_IMM(inst)) {
 				cpu.Registers[RD] = 1
 			} else {
 				cpu.Registers[RD] = 0
 			}
 		}
 
+		cpu.PC_Inc()
+	
 	case 0b00110011: // ADD
 		cpu.Registers[RD] = cpu.Registers[RS1] + cpu.Registers[RS2]
+		cpu.PC_Inc()
 
 	default:
 		println("Opcode '0b" + strconv.FormatUint(uint64(OPCODE), 2) + "' not implemented!")
 	}
+}
 
-	cpu.PC_Inc()
+func B_Type_IMM(inst uint32) uint32 {
+	return uint32(int32(inst & 0b10000000000000000000000000000000) >> 19) |
+		((inst & 0b00000000000000000000000010000000) << 4) |
+		(inst >> 20) & 0b00000000000000000000011111100000 |
+		(inst >> 7) & 0b00000000000000000000000000011110
+}
+
+func U_Type_IMM(inst uint32) uint32 {
+	return inst & 0b11111111111111111111000000000000
 }
 
 func J_Type_IMM(inst uint32) uint32 {
-	return uint32((int32(inst & 0b10000000000000000000000000000000) >> 11)) |
-						(inst & 0b00000000000011111111000000000000) |
-						(inst >> 9) & 0b00000000000000100000000000  |
-						(inst >> 20) & 0b0000000000000011111111110
+	return uint32(int32(inst & 0b10000000000000000000000000000000) >> 11) |
+		(inst & 0b00000000000011111111000000000000) |
+		(inst >> 9) & 0b00000000000000100000000000  |
+		(inst >> 20) & 0b0000000000000011111111110
 }
 
 func I_Type_IMM(inst uint32) uint32 {
